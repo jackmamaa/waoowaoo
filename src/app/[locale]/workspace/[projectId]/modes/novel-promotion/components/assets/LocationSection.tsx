@@ -36,6 +36,7 @@ interface LocationSectionProps {
     onImageClick: (imageUrl: string) => void
     onImageEdit: (locationId: string, imageIndex: number, locationName: string) => void
     onCopyFromGlobal: (locationId: string) => void  // 🆕 从资产中心复制
+    onUploadToGlobal: (locationId: string) => void
     /** 分集筛选：仅显示指定 ID 的场景/道具，null 表示显示全部 */
     filterIds?: Set<string> | null
 }
@@ -59,6 +60,7 @@ export default function LocationSection({
     onImageClick,
     onImageEdit,
     onCopyFromGlobal,
+    onUploadToGlobal,
     filterIds = null,
 }: LocationSectionProps) {
     const t = useTranslations('assets')
@@ -146,6 +148,7 @@ export default function LocationSection({
                         onSelectImage={onSelectImage}
                         onImageEdit={(locId, imgIdx) => onImageEdit(locId, imgIdx, location.name)}
                         onCopyFromGlobal={() => onCopyFromGlobal(location.id)}
+                        onUploadToGlobal={() => onUploadToGlobal(location.id)}
                         activeTaskKeys={activeTaskKeys}
                         onClearTaskKey={onClearTaskKey}
                         projectId={projectId}

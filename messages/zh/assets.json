@@ -58,7 +58,8 @@
         "characterCount": "{count} 个角色",
         "updateFailed": "更新描述失败",
         "addFailed": "添加角色失败",
-        "copyFromGlobal": "从资产中心复制"
+        "copyFromGlobal": "从资产中心复制",
+        "uploadToGlobal": "上传到资产中心"
     },
     "location": {
         "add": "添加场景",
@@ -73,7 +74,8 @@
         "generateImage": "生成图片",
         "regenerateImage": "重新生成",
         "updateFailed": "更新描述失败",
-        "addFailed": "添加场景失败"
+        "addFailed": "添加场景失败",
+        "uploadToGlobal": "上传到资产中心"
     },
     "prop": {
         "add": "添加道具",
@@ -85,7 +87,8 @@
         "summary": "简要描述",
         "summaryPlaceholder": "描述这个道具",
         "regenerateImage": "重新生成",
-        "addFailed": "添加道具失败"
+        "addFailed": "添加道具失败",
+        "uploadToGlobal": "上传到资产中心"
     },
     "image": {
         "upload": "上传图片",
@@ -270,6 +273,21 @@
         "copySuccessProp": "道具图片复制成功",
         "copySuccessVoice": "音色复制成功",
         "copyFailed": "复制失败: {error}",
+        "uploadPickFolderTitle": "选择上传文件夹",
+        "uploadPickFolderHint": "请选择上传到资产中心的目标文件夹",
+        "uploadTargetFolder": "目标文件夹",
+        "duplicateStrategyTitle": "重复资产处理",
+        "duplicateStrategySkip": "跳过（默认）",
+        "duplicateStrategyOverwrite": "覆盖已有资产",
+        "duplicateStrategyMove": "仅移动已有资产到目标文件夹",
+        "uncategorized": "未分类",
+        "uploadSuccessCharacter": "角色已上传到资产中心",
+        "uploadSuccessLocation": "场景已上传到资产中心",
+        "uploadSuccessProp": "道具已上传到资产中心",
+        "uploadSkippedDuplicate": "检测到同名资产，已跳过上传",
+        "uploadOverwrittenDuplicate": "检测到同名资产，已覆盖更新",
+        "uploadMovedDuplicate": "检测到同名资产，已移动到目标文件夹",
+        "uploadFailed": "上传到资产中心失败: {error}",
         "downloadEmpty": "当前没有可下载的图片资产",
         "downloadFailed": "打包下载失败"
     },

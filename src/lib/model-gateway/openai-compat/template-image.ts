@@ -53,6 +53,43 @@ function readTemplateOutputUrls(value: unknown): string[] {
   return urls
 }
 
+function toMimeFromOutputFormat(outputFormat: unknown): string {
+  if (outputFormat === 'jpeg' || outputFormat === 'jpg') return 'image/jpeg'
+  if (outputFormat === 'webp') return 'image/webp'
+  return 'image/png'
+}
+
+function readFallbackOutputUrls(payload: unknown): string[] {
+  const fromData = readTemplateOutputUrls(readJsonPath(payload, '$.data'))
+  if (fromData.length > 0) return fromData
+
+  const candidates = [
+    readJsonPath(payload, '$.data[0].url'),
+    readJsonPath(payload, '$.output.url'),
+    readJsonPath(payload, '$.output_url'),
+    readJsonPath(payload, '$.url'),
+  ]
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return [candidate.trim()]
+    }
+  }
+  return []
+}
+
+function readFallbackBase64(payload: unknown): string | null {
+  const candidates = [
+    readJsonPath(payload, '$.data[0].b64_json'),
+    readJsonPath(payload, '$.b64_json'),
+  ]
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim()
+    }
+  }
+  return null
+}
+
 export async function generateImageViaOpenAICompatTemplate(
   request: OpenAICompatImageRequest,
 ): Promise<GenerateResult> {
@@ -118,6 +155,27 @@ export async function generateImageViaOpenAICompatTemplate(
         imageUrl: outputUrl.trim(),
       }
     }
+
+    const fallbackUrls = readFallbackOutputUrls(payload)
+    if (fallbackUrls.length > 0) {
+      const first = fallbackUrls[0]
+      return {
+        success: true,
+        imageUrl: first,
+        ...(fallbackUrls.length > 1 ? { imageUrls: fallbackUrls } : {}),
+      }
+    }
+
+    const fallbackBase64 = readFallbackBase64(payload)
+    if (typeof fallbackBase64 === 'string' && fallbackBase64.length > 0) {
+      const mimeType = toMimeFromOutputFormat(request.options?.outputFormat)
+      return {
+        success: true,
+        imageBase64: fallbackBase64,
+        imageUrl: `data:${mimeType};base64,${fallbackBase64}`,
+      }
+    }
+
     throw new Error('OPENAI_COMPAT_IMAGE_TEMPLATE_OUTPUT_NOT_FOUND')
   }
 

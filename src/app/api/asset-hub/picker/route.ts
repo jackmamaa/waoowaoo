@@ -11,7 +11,8 @@ import { PRIMARY_APPEARANCE_INDEX } from '@/lib/constants'
  * 获取用户的全局资产列表，用于在项目中选择要复制的资产
  * 
  * Query params:
- * - type: 'character' | 'location'
+ * - type: 'character' | 'location' | 'prop' | 'voice'
+ * - folderId: 可选，按文件夹过滤
  */
 export const GET = apiHandler(async (request: NextRequest) => {
     // 🔐 统一权限验证
@@ -21,10 +22,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'character'
+    const folderId = searchParams.get('folderId')
+    const folderFilter = folderId ? { folderId } : {}
 
     if (type === 'character') {
         const characters = await prisma.globalCharacter.findMany({
-            where: { userId: session.user.id },
+            where: {
+                userId: session.user.id,
+                ...folderFilter,
+            },
             include: {
                 appearances: {
                     orderBy: { appearanceIndex: 'asc' }
@@ -50,6 +56,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
             return {
                 id: char.id,
                 name: char.name,
+                folderId: char.folderId,
                 folderName: char.folder?.name || null,
                 previewUrl,
                 appearanceCount: char.appearances.length,
@@ -62,7 +69,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
     if (type === 'location') {
         const locations = await prisma.globalLocation.findMany({
-            where: { userId: session.user.id },
+            where: {
+                userId: session.user.id,
+                assetKind: 'location',
+                ...folderFilter,
+            },
             include: {
                 images: {
                     orderBy: { imageIndex: 'asc' }
@@ -85,6 +96,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
                 id: loc.id,
                 name: loc.name,
                 summary: loc.summary,
+                folderId: loc.folderId,
                 folderName: loc.folder?.name || null,
                 previewUrl,
                 imageCount: loc.images.length
@@ -94,9 +106,51 @@ export const GET = apiHandler(async (request: NextRequest) => {
         return NextResponse.json({ locations: processedLocations })
     }
 
+    if (type === 'prop') {
+        const props = await prisma.globalLocation.findMany({
+            where: {
+                userId: session.user.id,
+                assetKind: 'prop',
+                ...folderFilter,
+            },
+            include: {
+                images: {
+                    orderBy: { imageIndex: 'asc' }
+                },
+                folder: true
+            },
+            orderBy: { updatedAt: 'desc' }
+        })
+
+        const processedProps = await Promise.all(props.map(async (prop) => {
+            const selectedImage = prop.images.find((img) => img.isSelected) || prop.images[0]
+            let previewUrl = null
+
+            if (selectedImage?.imageUrl) {
+                const media = await resolveMediaRefFromLegacyValue(selectedImage.imageUrl)
+                previewUrl = media?.url || selectedImage.imageUrl
+            }
+
+            return {
+                id: prop.id,
+                name: prop.name,
+                summary: prop.summary,
+                folderId: prop.folderId,
+                folderName: prop.folder?.name || null,
+                previewUrl,
+                imageCount: prop.images.length
+            }
+        }))
+
+        return NextResponse.json({ props: processedProps })
+    }
+
     if (type === 'voice') {
         const voices = await prisma.globalVoice.findMany({
-            where: { userId: session.user.id },
+            where: {
+                userId: session.user.id,
+                ...folderFilter,
+            },
             include: {
                 folder: true
             },
@@ -114,6 +168,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
                 id: voice.id,
                 name: voice.name,
                 description: voice.description,
+                folderId: voice.folderId,
                 folderName: voice.folder?.name || null,
                 previewUrl,
                 voiceId: voice.voiceId,

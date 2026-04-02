@@ -68,6 +68,17 @@ type AssetCopyInput = {
   }
 }
 
+type AssetUploadToGlobalInput = {
+  kind: AssetKind
+  targetId: string
+  folderId?: string | null
+  duplicateStrategy?: 'skip' | 'overwrite' | 'move'
+  access: {
+    userId: string
+    projectId: string
+  }
+}
+
 type AssetUpdateInput = {
   kind: AssetKind
   assetId: string
@@ -766,6 +777,280 @@ export async function copyAssetFromGlobal(input: AssetCopyInput) {
     return copyVoiceFromGlobal(input)
   }
   throw new ApiError('INVALID_PARAMS')
+}
+
+export async function uploadAssetToGlobal(input: AssetUploadToGlobalInput) {
+  const folderId = await resolveOptionalOwnedFolderId(input.folderId, input.access.userId)
+  const duplicateStrategy = resolveDuplicateStrategy(input.duplicateStrategy)
+  if (input.kind === 'character') {
+    return uploadCharacterToGlobal(input, folderId, duplicateStrategy)
+  }
+  if (input.kind === 'location' || input.kind === 'prop') {
+    return uploadLocationBackedAssetToGlobal(input, folderId, duplicateStrategy)
+  }
+  throw new ApiError('INVALID_PARAMS')
+}
+
+function resolveDuplicateStrategy(value: unknown): 'skip' | 'overwrite' | 'move' {
+  return value === 'overwrite' || value === 'move' ? value : 'skip'
+}
+
+async function resolveOptionalOwnedFolderId(folderId: string | null | undefined, userId: string): Promise<string | null> {
+  const normalized = normalizeString(folderId)
+  if (!normalized) return null
+  const folder = await prisma.globalAssetFolder.findFirst({
+    where: { id: normalized, userId },
+    select: { id: true },
+  })
+  if (!folder) {
+    throw new ApiError('INVALID_PARAMS', { code: 'INVALID_FOLDER_ID', message: 'folderId does not belong to current user' })
+  }
+  return folder.id
+}
+
+async function uploadCharacterToGlobal(
+  input: AssetUploadToGlobalInput,
+  folderId: string | null,
+  duplicateStrategy: 'skip' | 'overwrite' | 'move',
+) {
+  const projectCharacter = await prisma.novelPromotionCharacter.findFirst({
+    where: {
+      id: input.targetId,
+      novelPromotionProject: {
+        projectId: input.access.projectId,
+      },
+    },
+    include: {
+      appearances: {
+        orderBy: { appearanceIndex: 'asc' },
+      },
+    },
+  })
+  if (!projectCharacter) throw new ApiError('NOT_FOUND')
+
+  const duplicatedCharacter = await prisma.globalCharacter.findFirst({
+    where: {
+      userId: input.access.userId,
+      name: projectCharacter.name,
+      ...(duplicateStrategy === 'move' ? {} : { folderId }),
+    },
+    select: { id: true },
+  })
+  if (duplicatedCharacter) {
+    if (duplicateStrategy === 'move') {
+      await prisma.globalCharacter.update({
+        where: { id: duplicatedCharacter.id },
+        data: { folderId },
+      })
+      return {
+        success: true,
+        moved: true,
+        reason: 'duplicate',
+        globalAssetId: duplicatedCharacter.id,
+        kind: 'character' as const,
+      }
+    }
+    if (duplicateStrategy === 'overwrite') {
+      await prisma.globalCharacter.update({
+        where: { id: duplicatedCharacter.id },
+        data: {
+          folderId,
+          aliases: projectCharacter.aliases,
+          profileData: projectCharacter.profileData,
+          profileConfirmed: projectCharacter.profileConfirmed,
+          voiceId: projectCharacter.voiceId,
+          voiceType: projectCharacter.voiceType,
+          customVoiceUrl: projectCharacter.customVoiceUrl,
+        },
+      })
+      await prisma.globalCharacterAppearance.deleteMany({
+        where: { characterId: duplicatedCharacter.id },
+      })
+      for (const appearance of projectCharacter.appearances) {
+        const imageUrls = decodeImageUrlsFromDb(appearance.imageUrls, 'characterAppearance.imageUrls')
+        const previousImageUrls = decodeImageUrlsFromDb(appearance.previousImageUrls, 'characterAppearance.previousImageUrls')
+        await prisma.globalCharacterAppearance.create({
+          data: {
+            characterId: duplicatedCharacter.id,
+            appearanceIndex: appearance.appearanceIndex,
+            changeReason: appearance.changeReason || 'default',
+            description: appearance.description,
+            descriptions: appearance.descriptions,
+            imageUrl: appearance.imageUrl,
+            imageUrls: encodeImageUrls(imageUrls),
+            selectedIndex: appearance.selectedIndex,
+            previousImageUrl: appearance.previousImageUrl,
+            previousImageUrls: encodeImageUrls(previousImageUrls),
+            previousDescription: appearance.previousDescription,
+            previousDescriptions: appearance.previousDescriptions,
+          },
+        })
+      }
+      return {
+        success: true,
+        overwritten: true,
+        reason: 'duplicate',
+        globalAssetId: duplicatedCharacter.id,
+        kind: 'character' as const,
+      }
+    }
+    return {
+      success: true,
+      skipped: true,
+      reason: 'duplicate',
+      globalAssetId: duplicatedCharacter.id,
+      kind: 'character' as const,
+    }
+  }
+
+  const globalCharacter = await prisma.globalCharacter.create({
+    data: {
+      userId: input.access.userId,
+      folderId,
+      name: projectCharacter.name,
+      aliases: projectCharacter.aliases,
+      profileData: projectCharacter.profileData,
+      profileConfirmed: projectCharacter.profileConfirmed,
+      voiceId: projectCharacter.voiceId,
+      voiceType: projectCharacter.voiceType,
+      customVoiceUrl: projectCharacter.customVoiceUrl,
+    },
+  })
+
+  for (const appearance of projectCharacter.appearances) {
+    const imageUrls = decodeImageUrlsFromDb(appearance.imageUrls, 'characterAppearance.imageUrls')
+    const previousImageUrls = decodeImageUrlsFromDb(appearance.previousImageUrls, 'characterAppearance.previousImageUrls')
+    await prisma.globalCharacterAppearance.create({
+      data: {
+        characterId: globalCharacter.id,
+        appearanceIndex: appearance.appearanceIndex,
+        changeReason: appearance.changeReason || 'default',
+        description: appearance.description,
+        descriptions: appearance.descriptions,
+        imageUrl: appearance.imageUrl,
+        imageUrls: encodeImageUrls(imageUrls),
+        selectedIndex: appearance.selectedIndex,
+        previousImageUrl: appearance.previousImageUrl,
+        previousImageUrls: encodeImageUrls(previousImageUrls),
+        previousDescription: appearance.previousDescription,
+        previousDescriptions: appearance.previousDescriptions,
+      },
+    })
+  }
+
+  return { success: true, globalAssetId: globalCharacter.id, kind: 'character' as const }
+}
+
+async function uploadLocationBackedAssetToGlobal(
+  input: AssetUploadToGlobalInput,
+  folderId: string | null,
+  duplicateStrategy: 'skip' | 'overwrite' | 'move',
+) {
+  const projectLocation = await prisma.novelPromotionLocation.findFirst({
+    where: {
+      id: input.targetId,
+      novelPromotionProject: {
+        projectId: input.access.projectId,
+      },
+    },
+    include: {
+      images: {
+        orderBy: { imageIndex: 'asc' },
+      },
+    },
+  })
+  if (!projectLocation) throw new ApiError('NOT_FOUND')
+
+  const targetKind = input.kind === 'prop' ? 'prop' : 'location'
+  const duplicatedLocation = await prisma.globalLocation.findFirst({
+    where: {
+      userId: input.access.userId,
+      name: projectLocation.name,
+      assetKind: targetKind,
+      ...(duplicateStrategy === 'move' ? {} : { folderId }),
+    },
+    select: { id: true },
+  })
+  if (duplicatedLocation) {
+    if (duplicateStrategy === 'move') {
+      await prisma.globalLocation.update({
+        where: { id: duplicatedLocation.id },
+        data: { folderId },
+      })
+      return {
+        success: true,
+        moved: true,
+        reason: 'duplicate',
+        globalAssetId: duplicatedLocation.id,
+        kind: targetKind as 'location' | 'prop',
+      }
+    }
+    if (duplicateStrategy === 'overwrite') {
+      await prisma.globalLocation.update({
+        where: { id: duplicatedLocation.id },
+        data: {
+          folderId,
+          summary: projectLocation.summary,
+        },
+      })
+      await prisma.globalLocationImage.deleteMany({
+        where: { locationId: duplicatedLocation.id },
+      })
+      for (const image of projectLocation.images) {
+        await prisma.globalLocationImage.create({
+          data: {
+            locationId: duplicatedLocation.id,
+            imageIndex: image.imageIndex,
+            description: image.description,
+            imageUrl: image.imageUrl,
+            isSelected: image.isSelected,
+            previousImageUrl: image.previousImageUrl,
+            previousDescription: image.previousDescription,
+          },
+        })
+      }
+      return {
+        success: true,
+        overwritten: true,
+        reason: 'duplicate',
+        globalAssetId: duplicatedLocation.id,
+        kind: targetKind as 'location' | 'prop',
+      }
+    }
+    return {
+      success: true,
+      skipped: true,
+      reason: 'duplicate',
+      globalAssetId: duplicatedLocation.id,
+      kind: targetKind as 'location' | 'prop',
+    }
+  }
+
+  const globalLocation = await prisma.globalLocation.create({
+    data: {
+      userId: input.access.userId,
+      folderId,
+      name: projectLocation.name,
+      summary: projectLocation.summary,
+      assetKind: targetKind,
+    },
+  })
+
+  for (const image of projectLocation.images) {
+    await prisma.globalLocationImage.create({
+      data: {
+        locationId: globalLocation.id,
+        imageIndex: image.imageIndex,
+        description: image.description,
+        imageUrl: image.imageUrl,
+        isSelected: image.isSelected,
+        previousImageUrl: image.previousImageUrl,
+        previousDescription: image.previousDescription,
+      },
+    })
+  }
+
+  return { success: true, globalAssetId: globalLocation.id, kind: targetKind as 'location' | 'prop' }
 }
 
 async function copyCharacterFromGlobal(input: AssetCopyInput) {

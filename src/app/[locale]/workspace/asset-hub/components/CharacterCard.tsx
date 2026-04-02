@@ -54,9 +54,10 @@ interface CharacterCardProps {
     onVoiceDesign?: (characterId: string, characterName: string) => void
     onEdit?: (character: Character, appearance: Appearance) => void
     onVoiceSelect?: (characterId: string) => void
+    onMoveFolder?: (character: Character) => void
 }
 
-export function CharacterCard({ character, onImageClick, onImageEdit, onVoiceDesign, onEdit, onVoiceSelect }: CharacterCardProps) {
+export function CharacterCard({ character, onImageClick, onImageEdit, onVoiceDesign, onEdit, onVoiceSelect, onMoveFolder }: CharacterCardProps) {
     // 🔥 使用 mutation hooks
     const generateImage = useGenerateCharacterImage()
     const selectImage = useSelectCharacterImage()
@@ -248,6 +249,15 @@ export function CharacterCard({ character, onImageClick, onImageEdit, onVoiceDes
                         )}
                     </div>
                     <div className="flex items-center gap-1">
+                        {onMoveFolder && (
+                            <button
+                                onClick={() => onMoveFolder(character)}
+                                className="glass-btn-base glass-btn-soft h-6 w-6 rounded-md"
+                                title={t('moveToFolder')}
+                            >
+                                <AppIcon name="folder" className="w-4 h-4 text-[var(--glass-text-tertiary)]" />
+                            </button>
+                        )}
                         <ImageGenerationInlineCountButton
                             prefix={isAppearanceTaskRunning ? (
                                 <TaskStatusInline state={displayTaskPresentation} className="[&_span]:sr-only [&_svg]:text-[var(--glass-tone-info-fg)]" />
@@ -447,6 +457,15 @@ export function CharacterCard({ character, onImageClick, onImageEdit, onVoiceDes
                 <div className="flex items-center justify-between">
                     <h3 className="font-medium text-[var(--glass-text-primary)] text-sm truncate">{character.name}</h3>
                     <div className="flex items-center gap-1">
+                        {onMoveFolder && (
+                            <button
+                                onClick={() => onMoveFolder(character)}
+                                className="glass-btn-base glass-btn-soft h-6 w-6 rounded-md opacity-0 group-hover:opacity-100"
+                                title={t('moveToFolder')}
+                            >
+                                <AppIcon name="folder" className="w-4 h-4 text-[var(--glass-text-tertiary)]" />
+                            </button>
+                        )}
                         {/* 编辑按钮 */}
                         <button
                             onClick={() => onEdit?.(character, appearance)}

@@ -95,4 +95,80 @@ describe('openai-compat template image output urls', () => {
       imageUrl: 'https://cdn.test/only.png',
     })
   })
+
+  it('falls back to common response paths when configured output path is incorrect', async () => {
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({
+      data: [{ url: 'https://cdn.test/fallback.png' }],
+    }), { status: 200 })) as unknown as typeof fetch
+
+    const result = await generateImageViaOpenAICompatTemplate({
+      userId: 'user-1',
+      providerId: 'openai-compatible:test-provider',
+      modelId: 'gpt-image-1',
+      modelKey: 'openai-compatible:test-provider::gpt-image-1',
+      prompt: 'draw a cat',
+      profile: 'openai-compatible',
+      template: {
+        version: 1,
+        mediaType: 'image',
+        mode: 'sync',
+        create: {
+          method: 'POST',
+          path: '/images/generations',
+          contentType: 'application/json',
+          bodyTemplate: {
+            model: '{{model}}',
+            prompt: '{{prompt}}',
+          },
+        },
+        response: {
+          outputUrlPath: '$.unexpected.path',
+        },
+      },
+    })
+
+    expect(result).toEqual({
+      success: true,
+      imageUrl: 'https://cdn.test/fallback.png',
+    })
+  })
+
+  it('falls back to base64 payload when provider returns b64_json', async () => {
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({
+      data: [{ b64_json: 'QUJDREVGRw==' }],
+    }), { status: 200 })) as unknown as typeof fetch
+
+    const result = await generateImageViaOpenAICompatTemplate({
+      userId: 'user-1',
+      providerId: 'openai-compatible:test-provider',
+      modelId: 'gpt-image-1',
+      modelKey: 'openai-compatible:test-provider::gpt-image-1',
+      prompt: 'draw a cat',
+      profile: 'openai-compatible',
+      template: {
+        version: 1,
+        mediaType: 'image',
+        mode: 'sync',
+        create: {
+          method: 'POST',
+          path: '/images/generations',
+          contentType: 'application/json',
+          bodyTemplate: {
+            model: '{{model}}',
+            prompt: '{{prompt}}',
+          },
+        },
+        response: {
+          outputUrlPath: '$.unexpected.path',
+          outputUrlsPath: '$.unexpected.list',
+        },
+      },
+    })
+
+    expect(result).toEqual({
+      success: true,
+      imageBase64: 'QUJDREVGRw==',
+      imageUrl: 'data:image/png;base64,QUJDREVGRw==',
+    })
+  })
 })

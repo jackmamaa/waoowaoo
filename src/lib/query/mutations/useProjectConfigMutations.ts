@@ -77,6 +77,41 @@ export function useCopyProjectAssetFromGlobal(projectId: string) {
 }
 
 /**
+ * 上传项目资产到资产中心
+ */
+export function useUploadProjectAssetToGlobal(projectId: string) {
+    const queryClient = useQueryClient()
+    const invalidateProjectAssets = () =>
+        invalidateQueryTemplates(queryClient, [queryKeys.projectAssets.all(projectId)])
+
+    return useMutation({
+        mutationFn: async ({
+            type,
+            targetId,
+            folderId,
+            duplicateStrategy,
+        }: {
+            type: 'character' | 'location' | 'prop'
+            targetId: string
+            folderId?: string | null
+            duplicateStrategy?: 'skip' | 'overwrite' | 'move'
+        }) => {
+            return await requestJsonWithError(`/api/assets/${targetId}/upload-to-global`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    kind: type,
+                    projectId,
+                    folderId: folderId ?? null,
+                    duplicateStrategy: duplicateStrategy ?? 'skip',
+                }),
+            }, 'Failed to upload to global')
+        },
+        onSuccess: invalidateProjectAssets,
+    })
+}
+
+/**
  * AI 修改镜头提示词（项目）
  */
 

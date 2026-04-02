@@ -75,6 +75,13 @@ export default function AssetHubPage() {
     const [showAddVoice, setShowAddVoice] = useState(false)
     const [voicePickerCharacterId, setVoicePickerCharacterId] = useState<string | null>(null)
     const [isDownloading, setIsDownloading] = useState(false)
+    const [moveTargets, setMoveTargets] = useState<Array<{
+        type: 'character' | 'location' | 'prop' | 'voice'
+        id: string
+        name: string
+        folderId: string | null
+    }>>([])
+    const [movingFolderId, setMovingFolderId] = useState<string | null>(null)
 
 
     // 编辑角色弹窗状态
@@ -438,6 +445,44 @@ export default function AssetHubPage() {
         }
     }
 
+    const handleMoveAssetToFolder = async () => {
+        if (moveTargets.length === 0) return
+        try {
+            await Promise.all(moveTargets.map(async (target) => {
+                const endpoint = target.type === 'character'
+                    ? `/api/asset-hub/characters/${target.id}`
+                    : target.type === 'voice'
+                        ? `/api/asset-hub/voices/${target.id}`
+                        : `/api/asset-hub/locations/${target.id}`
+
+                const res = await apiFetch(endpoint, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folderId: movingFolderId, ...(target.type === 'prop' ? { assetKind: 'prop' } : {}) }),
+                })
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({})) as { error?: string }
+                    throw new Error(data.error || t('moveFolderFailed'))
+                }
+            }))
+
+            if (selectedFolderId !== movingFolderId) {
+                queryClient.setQueryData(queryKeys.assets.list({ scope: 'global', folderId: selectedFolderId }), (prev: unknown) => {
+                    const list = Array.isArray(prev) ? prev as Array<{ id: string; kind: string }> : []
+                    const movedKey = new Set(moveTargets.map((item) => `${item.type}:${item.id}`))
+                    return list.filter((item) => !movedKey.has(`${item.kind}:${item.id}`))
+                })
+            }
+            queryClient.invalidateQueries({ queryKey: queryKeys.globalAssets.all() })
+            refreshAssets()
+            setMoveTargets([])
+            setMovingFolderId(null)
+        } catch (error) {
+            _ulogError('移动资产文件夹失败:', error)
+            alert(t('moveFolderFailed'))
+        }
+    }
+
     return (
         <div className="glass-page min-h-screen">
             <Navbar />
@@ -489,9 +534,59 @@ export default function AssetHubPage() {
                         onLocationEdit={handleOpenLocationEdit}
                         onPropEdit={handleOpenPropEdit}
                         onVoiceSelect={(characterId) => setVoicePickerCharacterId(characterId)}
+                        onMoveCharacterFolder={(character) => {
+                            setMoveTargets([{ type: 'character', id: character.id, name: character.name, folderId: character.folderId }])
+                            setMovingFolderId(character.folderId)
+                        }}
+                        onMoveLocationFolder={(location, assetType) => {
+                            setMoveTargets([{ type: assetType, id: location.id, name: location.name, folderId: location.folderId }])
+                            setMovingFolderId(location.folderId)
+                        }}
+                        onMoveVoiceFolder={(voice) => {
+                            setMoveTargets([{ type: 'voice', id: voice.id, name: voice.name, folderId: voice.folderId }])
+                            setMovingFolderId(voice.folderId)
+                        }}
+                        onMoveSelected={(targets) => {
+                            if (targets.length === 0) return
+                            setMoveTargets(targets)
+                            setMovingFolderId(targets[0].folderId)
+                        }}
                     />
                 </div>
             </div>
+
+            {moveTargets.length > 0 && (
+                <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4">
+                    <div className="glass-surface-modal w-full max-w-md p-4">
+                        <h3 className="text-base font-semibold text-[var(--glass-text-primary)] mb-2">{t('moveToFolder')}</h3>
+                        <p className="text-sm text-[var(--glass-text-secondary)] mb-3">{t('moveToFolderHint', { name: moveTargets.length === 1 ? moveTargets[0].name : t('selectedAssets', { count: moveTargets.length }) })}</p>
+                        <select
+                            className="glass-input-base w-full h-10 px-3 mb-4"
+                            value={movingFolderId ?? '__none__'}
+                            onChange={(e) => setMovingFolderId(e.target.value === '__none__' ? null : e.target.value)}
+                        >
+                            <option value="__none__">{t('uncategorized')}</option>
+                            {folders.map((folder) => (
+                                <option key={folder.id} value={folder.id}>{folder.name}</option>
+                            ))}
+                        </select>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => { setMoveTargets([]); setMovingFolderId(null) }}
+                                className="glass-btn-base glass-btn-secondary px-3 py-1.5 rounded-lg text-sm"
+                            >
+                                {t('cancel')}
+                            </button>
+                            <button
+                                onClick={() => { void handleMoveAssetToFolder() }}
+                                className="glass-btn-base glass-btn-primary px-3 py-1.5 rounded-lg text-sm"
+                            >
+                                {t('confirmMove')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* 新建角色弹窗 */}
             {showAddCharacter && (

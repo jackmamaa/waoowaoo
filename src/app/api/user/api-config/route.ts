@@ -1704,6 +1704,8 @@ export const GET = apiHandler(async () => {
     { type: 'video', modelId: 'veo-3.0-generate-001', name: 'Veo 3.0' },
     { type: 'video', modelId: 'veo-3.0-fast-generate-001', name: 'Veo 3.0 Fast' },
     { type: 'video', modelId: 'veo-2.0-generate-001', name: 'Veo 2.0' },
+    { type: 'audio', modelId: 'gemini-2.5-flash-preview-tts', name: 'Gemini 2.5 Flash TTS' },
+    { type: 'audio', modelId: 'gemini-2.5-pro-preview-tts', name: 'Gemini 2.5 Pro TTS' },
   ]
   const savedModelKeys = new Set(pricedModels.map((m) => m.modelKey))
   const disabledPresets: (StoredModel & { enabled: false })[] = []

@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import ImagePreviewModal from '@/components/ui/ImagePreviewModal'
 import ImageEditModal from './ImageEditModal'
 import VoiceDesignDialog from '../voice/VoiceDesignDialog'
@@ -13,6 +15,7 @@ import {
   PropEditModal,
 } from '@/components/shared/assets'
 import GlobalAssetPicker from '@/components/shared/assets/GlobalAssetPicker'
+import { useGlobalFolders } from '@/lib/query/hooks'
 import type { CharacterProfileData } from '@/types/character-profile'
 import type { GlobalCopyTarget } from './hooks/useAssetsCopyFromHub'
 
@@ -94,6 +97,10 @@ interface AssetsStageModalsProps {
   editingProfile: EditingProfileState | null
   copyFromGlobalTarget: GlobalCopyTarget | null
   isGlobalCopyInFlight: boolean
+  uploadToGlobalTarget: { type: 'character' | 'location' | 'prop'; targetId: string } | null
+  isGlobalUploadInFlight: boolean
+  handleCloseUploadFolderPicker: () => void
+  handleConfirmUploadToGlobal: (folderId: string | null, duplicateStrategy: 'skip' | 'overwrite' | 'move') => Promise<void>
 }
 
 export default function AssetsStageModals({
@@ -133,7 +140,22 @@ export default function AssetsStageModals({
   editingProfile,
   copyFromGlobalTarget,
   isGlobalCopyInFlight,
+  uploadToGlobalTarget,
+  isGlobalUploadInFlight,
+  handleCloseUploadFolderPicker,
+  handleConfirmUploadToGlobal,
 }: AssetsStageModalsProps) {
+  const t = useTranslations('assets')
+  const { data: folders = [] } = useGlobalFolders()
+  const [targetFolderId, setTargetFolderId] = useState<string | null>(null)
+  const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'overwrite' | 'move'>('skip')
+
+  useEffect(() => {
+    if (!uploadToGlobalTarget) return
+    setTargetFolderId(null)
+    setDuplicateStrategy('skip')
+  }, [uploadToGlobalTarget])
+
   return (
     <>
       {previewImage && <ImagePreviewModal imageUrl={previewImage} onClose={onClosePreview} />}
@@ -264,6 +286,56 @@ export default function AssetsStageModals({
           type={copyFromGlobalTarget.type}
           loading={isGlobalCopyInFlight}
         />
+      )}
+
+      {uploadToGlobalTarget && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4">
+          <div className="glass-surface-modal w-full max-w-md p-4">
+            <h3 className="text-base font-semibold text-[var(--glass-text-primary)] mb-3">{t('assetLibrary.uploadPickFolderTitle')}</h3>
+            <p className="text-sm text-[var(--glass-text-secondary)] mb-3">{t('assetLibrary.uploadPickFolderHint')}</p>
+            <div className="mb-3">
+              <label className="block text-xs text-[var(--glass-text-tertiary)] mb-1">{t('assetLibrary.uploadTargetFolder')}</label>
+              <select
+                value={targetFolderId ?? '__none__'}
+                onChange={(e) => setTargetFolderId(e.target.value === '__none__' ? null : e.target.value)}
+                className="glass-input-base w-full h-10 px-3"
+              >
+                <option value="__none__">{t('assetLibrary.uncategorized')}</option>
+                {folders.map((folder) => (
+                  <option key={folder.id} value={folder.id}>{folder.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-xs text-[var(--glass-text-tertiary)] mb-1">{t('assetLibrary.duplicateStrategyTitle')}</label>
+              <select
+                value={duplicateStrategy}
+                onChange={(e) => setDuplicateStrategy(e.target.value as 'skip' | 'overwrite' | 'move')}
+                className="glass-input-base w-full h-10 px-3"
+              >
+                <option value="skip">{t('assetLibrary.duplicateStrategySkip')}</option>
+                <option value="overwrite">{t('assetLibrary.duplicateStrategyOverwrite')}</option>
+                <option value="move">{t('assetLibrary.duplicateStrategyMove')}</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={handleCloseUploadFolderPicker}
+                disabled={isGlobalUploadInFlight}
+                className="glass-btn-base glass-btn-secondary px-3 py-1.5 rounded-lg text-sm"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={() => { void handleConfirmUploadToGlobal(targetFolderId, duplicateStrategy) }}
+                disabled={isGlobalUploadInFlight}
+                className="glass-btn-base glass-btn-primary px-3 py-1.5 rounded-lg text-sm"
+              >
+                {t('common.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

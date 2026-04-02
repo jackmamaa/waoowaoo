@@ -58,7 +58,8 @@
         "characterCount": "{count} Characters",
         "updateFailed": "Update description failed",
         "addFailed": "Add character failed",
-        "copyFromGlobal": "Copy from Asset Hub"
+        "copyFromGlobal": "Copy from Asset Hub",
+        "uploadToGlobal": "Upload to Asset Hub"
     },
     "location": {
         "add": "Add Location",
@@ -73,7 +74,8 @@
         "generateImage": "Generate Image",
         "regenerateImage": "Regenerate",
         "updateFailed": "Update description failed",
-        "addFailed": "Add location failed"
+        "addFailed": "Add location failed",
+        "uploadToGlobal": "Upload to Asset Hub"
     },
     "prop": {
         "add": "Add Prop",
@@ -85,7 +87,8 @@
         "summary": "Summary",
         "summaryPlaceholder": "Describe the prop",
         "regenerateImage": "Regenerate",
-        "addFailed": "Add prop failed"
+        "addFailed": "Add prop failed",
+        "uploadToGlobal": "Upload to Asset Hub"
     },
     "image": {
         "upload": "Upload Image",
@@ -270,6 +273,21 @@
         "copySuccessProp": "Prop image copied successfully",
         "copySuccessVoice": "Voice copied successfully",
         "copyFailed": "Copy failed: {error}",
+        "uploadPickFolderTitle": "Choose Target Folder",
+        "uploadPickFolderHint": "Select the destination folder in Asset Hub",
+        "uploadTargetFolder": "Target folder",
+        "duplicateStrategyTitle": "When duplicate exists",
+        "duplicateStrategySkip": "Skip (default)",
+        "duplicateStrategyOverwrite": "Overwrite existing asset",
+        "duplicateStrategyMove": "Only move existing asset to target folder",
+        "uncategorized": "Uncategorized",
+        "uploadSuccessCharacter": "Character uploaded to Asset Hub",
+        "uploadSuccessLocation": "Location uploaded to Asset Hub",
+        "uploadSuccessProp": "Prop uploaded to Asset Hub",
+        "uploadSkippedDuplicate": "Duplicate asset detected, upload skipped",
+        "uploadOverwrittenDuplicate": "Duplicate asset detected, existing asset overwritten",
+        "uploadMovedDuplicate": "Duplicate asset detected, existing asset moved to target folder",
+        "uploadFailed": "Upload to Asset Hub failed: {error}",
         "downloadEmpty": "No image assets to download",
         "downloadFailed": "Download failed"
     },

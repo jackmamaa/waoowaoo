@@ -147,6 +147,13 @@ export const ART_STYLES = [
     promptEn: 'Modern Japanese anime style, cel shading, clean line art, visual-novel CG look, high-quality 2D style.'
   },
   {
+    value: 'anime-3d',
+    label: '3D动漫',
+    preview: '3D',
+    promptZh: '3D 国漫武侠质感，电影级运镜，细腻国风美术表现，超写实高细节，真实皮肤纹理，物理级布料模拟，电影级景深，古风场景，柔和自然光影，温润厚重色调，60 帧高帧率，8K 超高清；负面提示词：2D 插画，卡通画风，低画质，模糊，霓虹亮色，画面抖动，变形，穿模，过曝，惨白',
+    promptEn: '3D Chinese anime wuxia style, cinematic camera movement, exquisite traditional Chinese art, hyper-detailed, realistic skin texture, physics-based cloth simulation, cinematic depth of field, ancient Chinese setting, soft natural lighting, warm and rich color grading, 60fps, 8K ultra HD;Negative prompt: 2D illustration, cartoon style, low resolution, blurry, neon bright colors, camera shake, distortion, clipping, overexposure, pale skin.'
+  },
+  {
     value: 'realistic',
     label: '真人风格',
     preview: '实',

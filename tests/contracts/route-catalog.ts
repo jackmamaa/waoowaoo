@@ -60,6 +60,7 @@ const ROUTE_FILES = [
   'src/app/api/assets/[assetId]/revert-render/route.ts',
   'src/app/api/assets/[assetId]/route.ts',
   'src/app/api/assets/[assetId]/select-render/route.ts',
+  'src/app/api/assets/[assetId]/upload-to-global/route.ts',
   'src/app/api/assets/[assetId]/update-label/route.ts',
   'src/app/api/assets/[assetId]/variants/[variantId]/route.ts',
   'src/app/api/assets/route.ts',

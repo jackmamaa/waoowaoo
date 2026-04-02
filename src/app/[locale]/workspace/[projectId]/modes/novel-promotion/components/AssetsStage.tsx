@@ -40,6 +40,7 @@ import { useTTSGeneration } from './assets/hooks/useTTSGeneration'
 import { useAssetModals } from './assets/hooks/useAssetModals'
 import { useProfileManagement } from './assets/hooks/useProfileManagement'
 import { useAssetsCopyFromHub } from './assets/hooks/useAssetsCopyFromHub'
+import { useAssetsUploadToHub } from './assets/hooks/useAssetsUploadToHub'
 import { useAssetsGlobalActions } from './assets/hooks/useAssetsGlobalActions'
 import { useAssetsImageEdit } from './assets/hooks/useAssetsImageEdit'
 
@@ -242,6 +243,20 @@ export default function AssetsStage({
     showToast,
   })
 
+  const {
+    isGlobalUploadInFlight,
+    uploadToGlobalTarget,
+    handleUploadCharacterToGlobal,
+    handleUploadLocationToGlobal,
+    handleUploadPropToGlobal,
+    handleCloseUploadFolderPicker,
+    handleConfirmUploadToGlobal,
+  } = useAssetsUploadToHub({
+    projectId,
+    onRefresh,
+    showToast,
+  })
+
   // 角色操作
   const {
     handleDeleteCharacter,
@@ -431,6 +446,7 @@ export default function AssetsStage({
             onVoiceDesign={handleOpenVoiceDesign}
             onVoiceSelectFromHub={handleVoiceSelectFromHub}
             onCopyFromGlobal={handleCopyFromGlobal}
+            onUploadToGlobal={handleUploadCharacterToGlobal}
             getAppearances={getAppearances}
             filterIds={episodeAssetIds?.charIds ?? null}
             // 🔥 V7：待确认角色档案内嵌到 CharacterSection
@@ -465,6 +481,7 @@ export default function AssetsStage({
             onImageClick={setPreviewImage}
             onImageEdit={(locId, imgIdx) => handleOpenLocationImageEdit(locId, imgIdx)}
             onCopyFromGlobal={handleCopyLocationFromGlobal}
+            onUploadToGlobal={handleUploadLocationToGlobal}
             filterIds={episodeAssetIds?.locIds ?? null}
           />
       )}
@@ -490,6 +507,7 @@ export default function AssetsStage({
             onImageClick={setPreviewImage}
             onImageEdit={() => undefined}
             onCopyFromGlobal={handleCopyPropFromGlobal}
+            onUploadToGlobal={handleUploadPropToGlobal}
             filterIds={episodeAssetIds?.propIds ?? null}
           />
       )}
@@ -531,6 +549,10 @@ export default function AssetsStage({
         editingProfile={editingProfile}
         copyFromGlobalTarget={copyFromGlobalTarget}
         isGlobalCopyInFlight={isGlobalCopyInFlight}
+        uploadToGlobalTarget={uploadToGlobalTarget}
+        isGlobalUploadInFlight={isGlobalUploadInFlight}
+        handleCloseUploadFolderPicker={handleCloseUploadFolderPicker}
+        handleConfirmUploadToGlobal={handleConfirmUploadToGlobal}
       />
     </div>
   )

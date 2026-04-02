@@ -52,9 +52,10 @@ interface LocationCardProps {
   onImageClick?: (url: string) => void
   onImageEdit?: (type: 'character' | 'location', id: string, name: string, imageIndex: number) => void
   onEdit?: (location: Location, imageIndex: number) => void
+  onMoveFolder?: (location: Location, assetType: 'location' | 'prop') => void
 }
 
-export function LocationCard({ location, assetType = 'location', onImageClick, onImageEdit, onEdit }: LocationCardProps) {
+export function LocationCard({ location, assetType = 'location', onImageClick, onImageEdit, onEdit, onMoveFolder }: LocationCardProps) {
   // 🔥 使用 mutation hooks
   const generateImage = useGenerateLocationImage()
   const selectImage = useSelectLocationImage()
@@ -224,6 +225,15 @@ export function LocationCard({ location, assetType = 'location', onImageClick, o
           <div className="text-xs text-[var(--glass-text-tertiary)]">{selectionStatusText}</div>
         </div>
           <div className="flex items-center gap-1 ml-2">
+            {onMoveFolder && (
+              <button
+                onClick={() => onMoveFolder(location, assetType)}
+                className="glass-btn-base glass-btn-soft h-6 w-6 rounded-md"
+                title={t('moveToFolder')}
+              >
+                <AppIcon name="folder" className="w-4 h-4 text-[var(--glass-text-tertiary)]" />
+              </button>
+            )}
             <ImageGenerationInlineCountButton
               prefix={isTaskRunning ? (
                 <TaskStatusInline state={displayTaskPresentation} className="[&_span]:sr-only [&_svg]:text-[var(--glass-tone-info-fg)]" />
@@ -440,6 +450,15 @@ export function LocationCard({ location, assetType = 'location', onImageClick, o
             <p className="text-[10px] text-[var(--glass-text-tertiary)]">{assetLabel}</p>
           </div>
           <div className="flex items-center gap-1">
+            {onMoveFolder && (
+              <button
+                onClick={() => onMoveFolder(location, assetType)}
+                className="glass-btn-base glass-btn-soft h-6 w-6 rounded-md opacity-0 group-hover:opacity-100"
+                title={t('moveToFolder')}
+              >
+                <AppIcon name="folder" className="w-4 h-4 text-[var(--glass-text-tertiary)]" />
+              </button>
+            )}
             {/* 编辑按钮 */}
             <button
               onClick={() => onEdit?.(location, currentImageIndex)}

@@ -17,67 +17,44 @@ interface GlobalAssetPickerProps {
     loading?: boolean
 }
 
-interface GlobalCharacterAppearance {
+interface GlobalFolder {
     id: string
-    imageUrl: string | null
-    imageUrls: string[]
-    selectedIndex: number | null
+    name: string
 }
 
-interface GlobalCharacter {
+interface GlobalPickerCharacter {
     id: string
     name: string
     folderId: string | null
-    customVoiceUrl: string | null
-    appearances: GlobalCharacterAppearance[]
+    folderName: string | null
+    previewUrl: string | null
+    appearanceCount: number
+    hasVoice: boolean
 }
 
-interface GlobalLocationImage {
-    id: string
-    imageIndex: number
-    imageUrl: string | null
-    isSelected: boolean
-}
-
-interface GlobalLocation {
+interface GlobalPickerLocation {
     id: string
     name: string
     summary: string | null
     folderId: string | null
-    images: GlobalLocationImage[]
+    folderName: string | null
+    previewUrl: string | null
+    imageCount: number
 }
 
-type GlobalProp = GlobalLocation
+type GlobalPickerProp = GlobalPickerLocation
 
-interface GlobalVoice {
+interface GlobalPickerVoice {
     id: string
     name: string
     description: string | null
     folderId: string | null
-    customVoiceUrl: string | null
+    folderName: string | null
+    previewUrl: string | null
     voiceId: string | null
     voiceType: string
-    voicePrompt: string | null
     gender: string | null
     language: string
-}
-
-/** 从 appearances 中提取预览图 URL */
-function getCharacterPreview(char: GlobalCharacter): string | null {
-    const first = char.appearances?.[0]
-    if (!first) return null
-    // 优先使用 selectedIndex 指向的图
-    if (first.selectedIndex != null && first.imageUrls?.[first.selectedIndex]) {
-        return first.imageUrls[first.selectedIndex]
-    }
-    return first.imageUrl || first.imageUrls?.[0] || null
-}
-
-/** 从 images 中提取预览图 URL */
-function getLocationPreview(loc: GlobalLocation): string | null {
-    const selected = loc.images?.find(img => img.isSelected)
-    if (selected?.imageUrl) return selected.imageUrl
-    return loc.images?.[0]?.imageUrl || null
 }
 
 // 内联 SVG 图标组件
@@ -115,59 +92,38 @@ export default function GlobalAssetPicker({
 }: GlobalAssetPickerProps) {
     const t = useTranslations('assetPicker')
 
-    // 轻量级查询：只查询当前 type，不附带任务状态
-    const charactersQuery = useQuery({
-        queryKey: ['global-assets', 'characters'],
+    const [selectedFolderId, setSelectedFolderId] = useState<'all' | string>('all')
+
+    const foldersQuery = useQuery({
+        queryKey: ['asset-hub-folders', 'picker'],
         queryFn: async () => {
-            const res = await apiFetch('/api/assets?scope=global&kind=character')
-            if (!res.ok) throw new Error('Failed to fetch characters')
+            const res = await apiFetch('/api/asset-hub/folders')
+            if (!res.ok) throw new Error('Failed to fetch folders')
             const data = await res.json()
-            return data.assets as GlobalCharacter[]
+            return (data.folders || []) as GlobalFolder[]
         },
-        enabled: type === 'character',
-    })
-    const locationsQuery = useQuery({
-        queryKey: ['global-assets', 'locations'],
-        queryFn: async () => {
-            const res = await apiFetch('/api/assets?scope=global&kind=location')
-            if (!res.ok) throw new Error('Failed to fetch locations')
-            const data = await res.json()
-            return data.assets as GlobalLocation[]
-        },
-        enabled: type === 'location',
-    })
-    const propsQuery = useQuery({
-        queryKey: ['global-assets', 'props'],
-        queryFn: async () => {
-            const res = await apiFetch('/api/assets?scope=global&kind=prop')
-            if (!res.ok) throw new Error('Failed to fetch props')
-            const data = await res.json()
-            return data.assets as GlobalProp[]
-        },
-        enabled: type === 'prop',
-    })
-    const voicesQuery = useQuery({
-        queryKey: ['global-assets', 'voices'],
-        queryFn: async () => {
-            const res = await apiFetch('/api/assets?scope=global&kind=voice')
-            if (!res.ok) throw new Error('Failed to fetch voices')
-            const data = await res.json()
-            return data.assets as GlobalVoice[]
-        },
-        enabled: type === 'voice',
     })
 
-    const characters = (charactersQuery.data || []) as GlobalCharacter[]
-    const locations = (locationsQuery.data || []) as GlobalLocation[]
-    const props = (propsQuery.data || []) as GlobalProp[]
-    const voices = (voicesQuery.data || []) as GlobalVoice[]
-    const isLoading = type === 'character'
-        ? charactersQuery.isFetching
-        : type === 'location'
-            ? locationsQuery.isFetching
-            : type === 'prop'
-                ? propsQuery.isFetching
-            : voicesQuery.isFetching
+    const pickerQuery = useQuery({
+        queryKey: ['asset-hub-picker', type, selectedFolderId],
+        queryFn: async () => {
+            const params = new URLSearchParams({ type })
+            if (selectedFolderId !== 'all') {
+                params.set('folderId', selectedFolderId)
+            }
+            const res = await apiFetch(`/api/asset-hub/picker?${params.toString()}`)
+            if (!res.ok) throw new Error('Failed to fetch picker assets')
+            return res.json()
+        },
+        enabled: isOpen,
+    })
+
+    const characters = ((pickerQuery.data?.characters || []) as GlobalPickerCharacter[])
+    const locations = ((pickerQuery.data?.locations || []) as GlobalPickerLocation[])
+    const props = ((pickerQuery.data?.props || []) as GlobalPickerProp[])
+    const voices = ((pickerQuery.data?.voices || []) as GlobalPickerVoice[])
+    const folders = (foldersQuery.data || []) as GlobalFolder[]
+    const isLoading = pickerQuery.isFetching
     const loadingState = isLoading
         ? resolveTaskPresentationState({
             phase: 'processing',
@@ -192,10 +148,7 @@ export default function GlobalAssetPicker({
     const audioRef = useRef<HTMLAudioElement | null>(null)
 
     // 提取稳定的 refetch 引用，避免 useEffect 无限循环
-    const refetchCharacters = charactersQuery.refetch
-    const refetchLocations = locationsQuery.refetch
-    const refetchProps = propsQuery.refetch
-    const refetchVoices = voicesQuery.refetch
+    const refetchPicker = pickerQuery.refetch
 
     // 停止音频播放的辅助函数
     const stopAudio = () => {
@@ -212,15 +165,8 @@ export default function GlobalAssetPicker({
         if (isOpen) {
             setSelectedId(null)
             setSearchQuery('')
-            if (type === 'character') {
-                refetchCharacters()
-            } else if (type === 'location') {
-                refetchLocations()
-            } else if (type === 'prop') {
-                refetchProps()
-            } else {
-                refetchVoices()
-            }
+            setSelectedFolderId('all')
+            refetchPicker()
         } else {
             // 关闭对话框时停止播放
             stopAudio()
@@ -236,20 +182,24 @@ export default function GlobalAssetPicker({
     }
 
     const filteredCharacters = characters.filter(c =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase())
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.folderName && c.folderName.toLowerCase().includes(searchQuery.toLowerCase()))
     )
 
     const filteredLocations = locations.filter(l =>
-        l.name.toLowerCase().includes(searchQuery.toLowerCase())
+        l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (l.folderName && l.folderName.toLowerCase().includes(searchQuery.toLowerCase()))
     )
 
     const filteredProps = props.filter(l =>
-        l.name.toLowerCase().includes(searchQuery.toLowerCase())
+        l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (l.folderName && l.folderName.toLowerCase().includes(searchQuery.toLowerCase()))
     )
 
     const filteredVoices = voices.filter(v =>
         v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (v.description && v.description.toLowerCase().includes(searchQuery.toLowerCase()))
+        (v.description && v.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (v.folderName && v.folderName.toLowerCase().includes(searchQuery.toLowerCase()))
     )
 
     // 播放/暂停音频预览
@@ -315,15 +265,27 @@ export default function GlobalAssetPicker({
 
                 {/* 搜索栏 */}
                 <div className="px-6 py-3 border-b border-[var(--glass-stroke-base)]">
-                    <div className="relative">
-                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--glass-text-tertiary)]" />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={t('searchPlaceholder')}
-                            className="glass-input-base w-full pl-9 pr-4 py-2 text-sm"
-                        />
+                    <div className="flex gap-2">
+                        <div className="relative flex-1 min-w-0">
+                            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--glass-text-tertiary)]" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder={t('searchPlaceholder')}
+                                className="glass-input-base w-full pl-9 pr-4 py-2 text-sm"
+                            />
+                        </div>
+                        <select
+                            value={selectedFolderId}
+                            onChange={(e) => setSelectedFolderId(e.target.value)}
+                            className="glass-input-base shrink-0 !w-[220px] max-w-[38%] py-2 text-sm"
+                        >
+                            <option value="all">{t('allFolders')}</option>
+                            {folders.map((folder) => (
+                                <option key={folder.id} value={folder.id}>{folder.name}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 
@@ -353,7 +315,7 @@ export default function GlobalAssetPicker({
                         <div className="grid grid-cols-3 gap-3">
                             {type === 'character' ? (
                                 filteredCharacters.map((char) => {
-                                    const charPreview = getCharacterPreview(char)
+                                    const charPreview = char.previewUrl
                                     return (
                                         <div
                                             key={char.id}
@@ -392,16 +354,17 @@ export default function GlobalAssetPicker({
                                             <div className="text-center">
                                                 <p className="font-medium text-sm text-[var(--glass-text-primary)] truncate">{char.name}</p>
                                                 <p className="text-xs text-[var(--glass-text-secondary)] mt-1">
-                                                    {char.appearances?.length || 0} {t('appearances')}
-                                                    {char.customVoiceUrl && ' · Voice'}
+                                                    {char.appearanceCount || 0} {t('appearances')}
+                                                    {char.hasVoice && ` · ${t('voice')}`}
                                                 </p>
+                                                <p className="text-xs text-[var(--glass-text-tertiary)] mt-1 truncate">{char.folderName || t('noFolder')}</p>
                                             </div>
                                         </div>
                                     )
                                 })
                             ) : type === 'location' ? (
                                 filteredLocations.map((loc) => {
-                                    const locPreview = getLocationPreview(loc)
+                                    const locPreview = loc.previewUrl
                                     return (
                                         <div
                                             key={loc.id}
@@ -440,15 +403,16 @@ export default function GlobalAssetPicker({
                                             <div className="text-center">
                                                 <p className="font-medium text-sm text-[var(--glass-text-primary)] truncate">{loc.name}</p>
                                                 <p className="text-xs text-[var(--glass-text-secondary)] mt-1">
-                                                    {loc.images?.length || 0} {t('images')}
+                                                    {loc.imageCount || 0} {t('images')}
                                                 </p>
+                                                <p className="text-xs text-[var(--glass-text-tertiary)] mt-1 truncate">{loc.folderName || t('noFolder')}</p>
                                             </div>
                                         </div>
                                     )
                                 })
                             ) : type === 'prop' ? (
                                 filteredProps.map((prop) => {
-                                    const propPreview = getLocationPreview(prop)
+                                    const propPreview = prop.previewUrl
                                     return (
                                         <div
                                             key={prop.id}
@@ -482,8 +446,9 @@ export default function GlobalAssetPicker({
                                             <div className="text-center">
                                                 <p className="font-medium text-sm text-[var(--glass-text-primary)] truncate">{prop.name}</p>
                                                 <p className="text-xs text-[var(--glass-text-secondary)] mt-1">
-                                                    {prop.images?.length || 0} {t('images')}
+                                                    {prop.imageCount || 0} {t('images')}
                                                 </p>
+                                                <p className="text-xs text-[var(--glass-text-tertiary)] mt-1 truncate">{prop.folderName || t('noFolder')}</p>
                                             </div>
                                         </div>
                                     )
@@ -492,7 +457,7 @@ export default function GlobalAssetPicker({
                                 // 音色列表渲染 - 与资产中心 VoiceCard 风格统一
                                 filteredVoices.map((voice) => {
                                     const genderIcon = voice.gender === 'male' ? 'M' : voice.gender === 'female' ? 'F' : ''
-                                    const isVoicePlaying = previewAudio === voice.customVoiceUrl && isPlayingAudio
+                                    const isVoicePlaying = previewAudio === voice.previewUrl && isPlayingAudio
                                     return (
                                         <div
                                             key={voice.id}
@@ -523,9 +488,9 @@ export default function GlobalAssetPicker({
                                                 )}
 
                                                 {/* 试听按钮 - 圆形，与 VoiceCard 统一 */}
-                                                {voice.customVoiceUrl && (
+                                                {voice.previewUrl && (
                                                     <button
-                                                        onClick={(e) => handlePlayAudio(voice.customVoiceUrl!, e)}
+                                                        onClick={(e) => handlePlayAudio(voice.previewUrl!, e)}
                                                         className={`absolute bottom-2 right-2 w-10 h-10 rounded-full glass-btn-base flex items-center justify-center transition-all ${isVoicePlaying
                                                             ? 'glass-btn-tone-info animate-pulse'
                                                             : 'glass-btn-secondary text-[var(--glass-tone-info-fg)]'
@@ -546,9 +511,7 @@ export default function GlobalAssetPicker({
                                                 {voice.description && (
                                                     <p className="mt-1 text-xs text-[var(--glass-text-secondary)] line-clamp-2">{voice.description}</p>
                                                 )}
-                                                {voice.voicePrompt && !voice.description && (
-                                                    <p className="mt-1 text-xs text-[var(--glass-text-tertiary)] line-clamp-2 italic">{voice.voicePrompt}</p>
-                                                )}
+                                                <p className="mt-1 text-xs text-[var(--glass-text-tertiary)] truncate">{voice.folderName || t('noFolder')}</p>
                                             </div>
                                         </div>
                                     )

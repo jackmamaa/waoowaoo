@@ -29,6 +29,10 @@ interface AssetGridProps {
     onLocationEdit?: (location: unknown, imageIndex: number) => void
     onPropEdit?: (prop: unknown, imageIndex: number) => void
     onVoiceSelect?: (characterId: string) => void
+    onMoveCharacterFolder?: (character: { id: string; name: string; folderId: string | null }) => void
+    onMoveLocationFolder?: (location: { id: string; name: string; folderId: string | null }, assetType: 'location' | 'prop') => void
+    onMoveVoiceFolder?: (voice: { id: string; name: string; folderId: string | null }) => void
+    onMoveSelected?: (assets: Array<{ type: 'character' | 'location' | 'prop' | 'voice'; id: string; name: string; folderId: string | null }>) => void
 }
 
 // ─── 新建资产下拉菜单 ──────────────────────────────────
@@ -142,7 +146,11 @@ export function AssetGrid({
     onCharacterEdit,
     onLocationEdit,
     onPropEdit,
-    onVoiceSelect
+    onVoiceSelect,
+    onMoveCharacterFolder,
+    onMoveLocationFolder,
+    onMoveVoiceFolder,
+    onMoveSelected,
 }: AssetGridProps) {
     const t = useTranslations('assetHub')
     const loadingState = loading
@@ -162,6 +170,7 @@ export function AssetGrid({
         prop: 1,
         voice: 1,
     })
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
     const groupedAssets = groupAssetsByKind(assets)
     const characters = groupedAssets.character.map((asset) => ({
         id: asset.id,
@@ -243,6 +252,22 @@ export function AssetGrid({
         setSectionPage((prev) => ({ ...prev, [type]: page }))
     }
 
+    const toggleSelect = (key: string) => {
+        setSelectedKeys((prev) => {
+            const next = new Set(prev)
+            if (next.has(key)) next.delete(key)
+            else next.add(key)
+            return next
+        })
+    }
+
+    const selectedAssets = [
+        ...characters.map((item) => ({ ...item, type: 'character' as const })),
+        ...locations.map((item) => ({ ...item, type: 'location' as const })),
+        ...props.map((item) => ({ ...item, type: 'prop' as const })),
+        ...voices.map((item) => ({ ...item, type: 'voice' as const })),
+    ].filter((item) => selectedKeys.has(`${item.type}:${item.id}`))
+
     const charactersPage = paginate(characters, sectionPage.character)
     const locationsPage = paginate(locations, sectionPage.location)
     const propsPage = paginate(props, sectionPage.prop)
@@ -304,6 +329,14 @@ export function AssetGrid({
 
                 {/* 右侧操作按钮 */}
                 <div className="flex items-center gap-3">
+                    {selectedAssets.length > 0 && onMoveSelected && (
+                        <button
+                            onClick={() => onMoveSelected(selectedAssets.map((item) => ({ type: item.type, id: item.id, name: item.name, folderId: item.folderId })))}
+                            className="glass-btn-base glass-btn-secondary px-4 py-2 rounded-lg text-sm"
+                        >
+                            {t('moveSelected', { count: selectedAssets.length })}
+                        </button>
+                    )}
                     {onDownloadAll && (
                         <button
                             onClick={onDownloadAll}
@@ -344,15 +377,24 @@ export function AssetGrid({
                             </h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                                 {charactersPage.items.map((character) => (
-                                    <CharacterCard
-                                        key={character.id}
-                                        character={character}
-                                        onImageClick={onImageClick}
-                                        onImageEdit={onImageEdit}
-                                        onVoiceDesign={onVoiceDesign}
-                                        onEdit={onCharacterEdit}
-                                        onVoiceSelect={onVoiceSelect}
-                                    />
+                                    <div key={character.id} className="relative">
+                                        <label className="absolute top-2 right-2 z-20">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedKeys.has(`character:${character.id}`)}
+                                                onChange={() => toggleSelect(`character:${character.id}`)}
+                                            />
+                                        </label>
+                                        <CharacterCard
+                                            character={character}
+                                            onImageClick={onImageClick}
+                                            onImageEdit={onImageEdit}
+                                            onVoiceDesign={onVoiceDesign}
+                                            onEdit={onCharacterEdit}
+                                            onVoiceSelect={onVoiceSelect}
+                                            onMoveFolder={onMoveCharacterFolder}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                             {renderPagination('character', charactersPage.page, charactersPage.totalPages)}
@@ -368,13 +410,22 @@ export function AssetGrid({
                             </h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {locationsPage.items.map((location) => (
-                                    <LocationCard
-                                        key={location.id}
-                                        location={location}
-                                        onImageClick={onImageClick}
-                                        onImageEdit={onImageEdit}
-                                        onEdit={onLocationEdit}
-                                    />
+                                    <div key={location.id} className="relative">
+                                        <label className="absolute top-2 right-2 z-20">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedKeys.has(`location:${location.id}`)}
+                                                onChange={() => toggleSelect(`location:${location.id}`)}
+                                            />
+                                        </label>
+                                        <LocationCard
+                                            location={location}
+                                            onImageClick={onImageClick}
+                                            onImageEdit={onImageEdit}
+                                            onEdit={onLocationEdit}
+                                            onMoveFolder={onMoveLocationFolder}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                             {renderPagination('location', locationsPage.page, locationsPage.totalPages)}
@@ -389,14 +440,23 @@ export function AssetGrid({
                             </h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {propsPage.items.map((prop) => (
-                                    <LocationCard
-                                        key={prop.id}
-                                        location={prop}
-                                        assetType="prop"
-                                        onImageClick={onImageClick}
-                                        onImageEdit={onImageEdit}
-                                        onEdit={onPropEdit}
-                                    />
+                                    <div key={prop.id} className="relative">
+                                        <label className="absolute top-2 right-2 z-20">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedKeys.has(`prop:${prop.id}`)}
+                                                onChange={() => toggleSelect(`prop:${prop.id}`)}
+                                            />
+                                        </label>
+                                        <LocationCard
+                                            location={prop}
+                                            assetType="prop"
+                                            onImageClick={onImageClick}
+                                            onImageEdit={onImageEdit}
+                                            onEdit={onPropEdit}
+                                            onMoveFolder={onMoveLocationFolder}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                             {renderPagination('prop', propsPage.page, propsPage.totalPages)}
@@ -412,10 +472,19 @@ export function AssetGrid({
                             </h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                                 {voicesPage.items.map((voice) => (
-                                    <VoiceCard
-                                        key={voice.id}
-                                        voice={voice}
-                                    />
+                                    <div key={voice.id} className="relative">
+                                        <label className="absolute top-2 right-2 z-20">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedKeys.has(`voice:${voice.id}`)}
+                                                onChange={() => toggleSelect(`voice:${voice.id}`)}
+                                            />
+                                        </label>
+                                        <VoiceCard
+                                            voice={voice}
+                                            onMoveFolder={onMoveVoiceFolder}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                             {renderPagination('voice', voicesPage.page, voicesPage.totalPages)}

@@ -182,6 +182,10 @@ describe('api contract - crud routes (behavior)', () => {
     ),
   )
 
+  it('includes asset upload-to-global route in CRUD contract coverage', () => {
+    expect(routes.some((entry) => entry.routeFile === 'src/app/api/assets/[assetId]/upload-to-global/route.ts')).toBe(true)
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     authState.authenticated = false

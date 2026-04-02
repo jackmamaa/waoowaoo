@@ -23,9 +23,10 @@ interface VoiceCardProps {
     onSelect?: (voice: Voice) => void  // 选择模式时使用
     isSelected?: boolean  // 是否被选中
     selectionMode?: boolean  // 是否在选择模式
+    onMoveFolder?: (voice: Voice) => void
 }
 
-export function VoiceCard({ voice, onSelect, isSelected = false, selectionMode = false }: VoiceCardProps) {
+export function VoiceCard({ voice, onSelect, isSelected = false, selectionMode = false, onMoveFolder }: VoiceCardProps) {
     // 🔥 使用 mutation hook
     const deleteVoice = useDeleteVoice()
     const t = useTranslations('assetHub')
@@ -117,12 +118,23 @@ export function VoiceCard({ voice, onSelect, isSelected = false, selectionMode =
                 <div className="flex items-center justify-between">
                     <h3 className="font-medium text-[var(--glass-text-primary)] text-sm truncate">{voice.name}</h3>
                     {!selectionMode && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true) }}
-                            className="glass-btn-base glass-btn-soft h-6 w-6 rounded-md text-[var(--glass-tone-danger-fg)] flex items-center justify-center opacity-0 group-hover:opacity-100"
-                        >
-                            <AppIcon name="trash" className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                            {onMoveFolder && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onMoveFolder(voice) }}
+                                    className="glass-btn-base glass-btn-soft h-6 w-6 rounded-md text-[var(--glass-text-tertiary)] flex items-center justify-center"
+                                    title={t('moveToFolder')}
+                                >
+                                    <AppIcon name="folder" className="w-4 h-4" />
+                                </button>
+                            )}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true) }}
+                                className="glass-btn-base glass-btn-soft h-6 w-6 rounded-md text-[var(--glass-tone-danger-fg)] flex items-center justify-center"
+                            >
+                                <AppIcon name="trash" className="w-4 h-4" />
+                            </button>
+                        </div>
                     )}
                 </div>
                 {voice.description && (
