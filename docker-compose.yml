@@ -86,10 +86,15 @@ services:
       NEXTAUTH_URL: "http://localhost:13000"
       # 容器内自调用地址（服务端 fetch 自己的 API / 文件）
       INTERNAL_APP_URL: "http://127.0.0.1:3000"
+      # ⚠️  SECURITY: Change all four secrets below before deploying to production.
+      # These are public defaults and MUST be replaced with strong random values.
       NEXTAUTH_SECRET: "waoowaoo-default-secret-2026"
       # 内部密钥
       CRON_SECRET: "waoowaoo-docker-cron-secret"
       INTERNAL_TASK_TOKEN: "waoowaoo-docker-task-token"
+      # API_ENCRYPTION_KEY encrypts stored user API credentials.
+      # Using this public default means stored API keys can be decrypted by anyone.
+      # Generate a unique key with: openssl rand -hex 32
       API_ENCRYPTION_KEY: "waoowaoo-opensource-fixed-key-2026"
       # Worker 配置
       WATCHDOG_INTERVAL_MS: "30000"
