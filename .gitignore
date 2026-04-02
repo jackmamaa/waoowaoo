@@ -76,6 +76,14 @@ certificates
 
 # temporary files
 tmp/
+.tmp_*.ts
+.tmp_*.js
+debug-request.json
+scripts/tmp-*.ts
+scripts/tmp-*.js
+
+# npm lockfile (project uses pnpm)
+package-lock.json
 
 # internal AI agent config (not for public)
 AGENTS.md
